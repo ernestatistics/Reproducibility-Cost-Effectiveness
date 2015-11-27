@@ -17,7 +17,7 @@ In the final section we run the cost-effectiveness analysis for all posible scre
 
 # Auxiliary functions
 
-First we load all necessary libraries and define the auxiliary functions that are described in the *Auxiliary Functions* markdown file. 
+First we load all necessary libraries and  auxiliary functions described in the *Auxiliary Functions* markdown file. 
 
 ```{r}
 library(RCurl)
@@ -30,8 +30,9 @@ library(ggplot2)
 library(plyr)
 library(reshape2)
 
-setwd('/Users/Ernesto/Documents/INCAN/Reproducibility-cost-effectiveness/')
-source('Auxiliary Functions/auxiliary-functions.R')
+aux.function.url <-'https://rawgit.com/ernesto-up/Reproducibility-Cost-Effectiveness/master/Auxiliary%20Functions/auxiliary-functions.R'
+temp <- getURL(aux.function.url,followlocation = TRUE, cainfo = system.file("CurlSSL", "cacert.pem", package = "RCurl"))
+source(aux.function.url)
 
 ```
 
@@ -44,7 +45,11 @@ In this section we load and define population data and parameters.
 We load the data from the National Population Counsil and define the age groups.
 
 ```{r}
-conapo <- read.csv('Data/Conapo-Projections.csv')
+
+url <- "https://raw.github.com/christophergandrud/Disproportionality_Data/master/Disproportionality.csv"
+conapo <- getURL(url)                
+conapo <- read.csv(textConnection(conapo))
+#conapo <- read.csv('Data/Conapo-Projections.csv')
 ```
 
 ### Age Groups

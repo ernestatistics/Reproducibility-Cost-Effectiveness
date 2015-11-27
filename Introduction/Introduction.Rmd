@@ -5,7 +5,7 @@ date: "September 7, 2015"
 output: html_document
 ---
 
-This script shows the statistical analysis that was used to estimate the population screening percentages in the article's introduction. We used the National Survey of Health and Nutrition of 2012 (ENSANUT 2012) to estimate the percentages. One can download the results of the survey through this [link](http://ensanut.insp.mx/basesdoctos.php#.Vbe81vkYG-U) and follow the instructions to create a username. 
+This script shows the statistical analysis that was used to estimate the population screening percentages in the article's introduction. We used the National Survey of Health and Nutrition of 2012 (ENSANUT 2012) to estimate the percentages. One can download the results of the survey through this [link](http://ensanut.insp.mx/basesdoctos.php#.Vbe81vkYG-U) and follow the instructions to create a username. In this markdown we load the survey results from a local directory. 
 
 
 # Reading the Data
@@ -37,7 +37,7 @@ adultos.masto <- adultos.2012[,which(colnames(adultos.2012) %in% c('sexo','aedad
 
 ```
 
-We change the variable names:
+Change the variable names:
 
 ```{r}
 
@@ -71,21 +71,21 @@ In the case of women, there are 21766 NA that correspond to women who haven't ha
 
 ### Indicator for mammography screening
 
-We create an indicator that takes the value of **1** if the woman declares that she did have a mammography in 2011 (the year previous to the survey) and is equal to **0** if not. 
+Create an indicator that takes the value of **1** if the woman declares that she did have a mammography in 2011 (the year previous to the survey) and is equal to **0** if not. 
 
 ```{r}
 adultos.masto$Masto.11.ind <- 0 
 adultos.masto$Masto.11.ind[which(adultos.masto$Masto.11  == 'sí')] <- 1
 ```
 
-We create a second indicator that takes the value of **1** if the woman responded that she had a mammography exactly one year before the survey question was posed (in 2011) and is equal to **0** if not. 
+Create a second indicator that takes the value of **1** if the woman responded that she had a mammography exactly one year before the survey question was posed (in 2011) and is equal to **0** if not. 
 
 ```{r}
 adultos.masto$Masto.11.year <- 0 
 adultos.masto$Masto.11.year[which(adultos.masto$Years.ultima  == 1)] <- 1
 ```
 
-We combine these two indicator variables (see method 3 in the next section) to create a third variable that is equal to **1** if the woman responded **yes** or **0** to the questions: During 2011, did you go to a preventive medicine module for... mammography? and How long has it been since your last mammography? respectively:
+Combine these two indicator variables (see method 3 in the next section) to create a third variable that is equal to **1** if the woman responded **yes** or **0** to the questions: During 2011, did you go to a preventive medicine module for... mammography? and How long has it been since your last mammography? respectively:
 
 ```{r}
 adultos.masto$Masto.11.ind.2 <- ifelse(adultos.masto$Masto.11.year == 0 & adultos.masto$Masto.11.ind == 0,0,1)
@@ -93,7 +93,7 @@ adultos.masto$Masto.11.ind.2 <- ifelse(adultos.masto$Masto.11.year == 0 & adulto
 
 ### Age 
 
-We create three categorical variables to divide the **age** variable into different categories:
+Create three categorical variables to divide the **age** variable into different categories:
 
 - quinquennial (breaks every five years)
 - age.intro (minimum age,25,40,45 to 75 by 5,maximun age)
