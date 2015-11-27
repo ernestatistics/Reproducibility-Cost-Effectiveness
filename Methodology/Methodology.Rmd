@@ -19,7 +19,7 @@ In the final section we run the cost-effectiveness analysis for all posible scre
 
 First we load all necessary libraries and  auxiliary functions described in the *Auxiliary Functions* markdown file. 
 
-```{r}
+```{r,warning=FALSE,message=FALSE}
 library(RCurl)
 library(foreign)
 library(xtable)
@@ -30,9 +30,9 @@ library(ggplot2)
 library(plyr)
 library(reshape2)
 
-aux.function.url <-'https://rawgit.com/ernesto-up/Reproducibility-Cost-Effectiveness/master/Auxiliary%20Functions/auxiliary-functions.R'
-temp <- getURL(aux.function.url,followlocation = TRUE, cainfo = system.file("CurlSSL", "cacert.pem", package = "RCurl"))
-source(aux.function.url)
+url <-'https://rawgit.com/ernesto-up/Reproducibility-Cost-Effectiveness/master/Auxiliary%20Functions/auxiliary-functions.R'
+temp <- getURL(url,followlocation = TRUE, cainfo = system.file("CurlSSL", "cacert.pem", package = "RCurl"))
+source(url)
 
 ```
 
@@ -46,10 +46,9 @@ We load the data from the National Population Counsil and define the age groups.
 
 ```{r}
 
-url <- "https://raw.github.com/christophergandrud/Disproportionality_Data/master/Disproportionality.csv"
-conapo <- getURL(url)                
-conapo <- read.csv(textConnection(conapo))
-#conapo <- read.csv('Data/Conapo-Projections.csv')
+url <- "https://rawgit.com/ernesto-up/Reproducibility-Cost-Effectiveness/master/Data%20Sets/Conapo-Projections.csv"
+temp <- getURL(url)                
+conapo <- read.csv(textConnection(temp))
 ```
 
 ### Age Groups
@@ -91,8 +90,8 @@ load(url(githubURL))
 We convert the time to years and separate them by clinical stage:
 
 ```{r,warning=FALSE,message=FALSE}
-datos$tiempo.vida.years <- as.numeric((datos$tiempo.vida)/365.25)
-data.by.stage <- split(datos,datos$etapa.clinica.2)
+protection.fund.data$obs.time.years <- as.numeric((protection.fund.data$tiempo.vida)/365.25)
+data.by.stage <- split(protection.fund.data,protection.fund.data$etapa.clinica.2)
 ```
 
 ### Life tables by clinical stage
@@ -101,19 +100,19 @@ We calculate the life tables by stages:
 
 ```{r,message=FALSE,warning=FALSE}
 life.tables <- lapply(data.by.stage,function(x){
-                            time.life.years.redo <-floor(x$tiempo.vida.years)
-                            data.table <- data.frame(time.life.years.redo,x$censura.vida)
-                            die<-gsummary(data.table,sum,groups=time.life.years.redo)
-                            total<-gsummary(data.table, length, groups=time.life.years.redo)
+                            obs.time.years.redo <-floor(x$obs.time.years)
+                            data.table <- data.frame(obs.time.years.redo,x$censura.vida)
+                            die<-gsummary(data.table,sum,groups=obs.time.years.redo)
+                            total<-gsummary(data.table, length, groups=obs.time.years.redo)
                             ltab.data<-cbind(die[,1:2], total[,2])
-                            rm(time.life.years.redo)
+                            rm(obs.time.years.redo)
                             attach(ltab.data)
-                            lt=length(time.life.years.redo)
-                            time.life.years.redo[lt+1]=NA
+                            lt=length(obs.time.years.redo)
+                            obs.time.years.redo[lt+1]=NA
                             nevent = x.censura.vida
                             nlost = total[,2] - x.censura.vida
                             n = nrow(x)
-                            mytable <- lifetab(time.life.years.redo, n, nlost, nevent)
+                            mytable <- lifetab(obs.time.years.redo, n, nlost, nevent)
                             detach(ltab.data)
                             mytable[,1:5]
                             })
