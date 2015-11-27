@@ -45,7 +45,6 @@ In this section we load and define population data and parameters.
 We load the data from the National Population Counsil and define the age groups.
 
 ```{r}
-
 url <- "https://rawgit.com/ernesto-up/Reproducibility-Cost-Effectiveness/master/Data%20Sets/Conapo-Projections.csv"
 temp <- getURL(url)                
 conapo <- read.csv(textConnection(temp))
@@ -216,8 +215,6 @@ qplot(x = z,y = a) + geom_point() + geom_smooth(method = 'lm',formula = a ~ x ,s
 pred <- data.frame(x = c(32.5))
 exp(predict(lin.sens, newdata = pred))
 rm(list = c('pred','lin.mst','lin.sens','x','y','z'))
-
-#save.image("C:/Users/epidemiologia/Desktop/ernesto/CaMa/datos/parametros deteccion.RData")
 ```
 
 Define sensitivity with extrapolated results:
@@ -282,7 +279,6 @@ YLL.early <- ddply(mean.age.group,'age.group',summarize,
                                A = mean.age.group+4,L=life.expectancy-(mean.age.group+4),a = mean.age.group) +
                         survival.early$acum.letality[5]*burden(1,DW= 1,
                                A = mean.age.group+5,L=life.expectancy-(mean.age.group+5),a = mean.age.group)) 
-
 ```
 
 ### DAYLS Locally Advanced: 
@@ -456,7 +452,7 @@ porc.70.75 <- seq(0,2,2)*.01
 
 ```
 
-Define the periodicity of the programs:
+Define periodicities of the programs:
 
 ```{r}
 periodicity<- c(1,2,3)
@@ -471,25 +467,29 @@ end <- 2026
 
 We create a data frame with all the information for each intervention and run the simulations. We store all the results in the same data frame. This last part of the markdown file is not evaluated. 
 
-It take approximately 30 minutes to run on a 
+It takes approximately 40 minutes to run with:
+
+MacBook Pro 
+2.9 GHz Intel Core i5 
+8 GB 1867 MHz DDR3
+R version 3.2.0 (2015-04-16)
 
 ```{r,eval=FALSE}
-interventions <- data.frame(expand.grid(list = list(periodicity = periodicity,porc.25.40 = porc.25.40, porc.40.45 = porc.40.45,
+ results.simulation <- data.frame(expand.grid(list = list(periodicity = periodicity,porc.25.40 = porc.25.40, porc.40.45 = porc.40.45,
                         porc.45.50 = porc.45.50, porc.50.55 = porc.50.55, porc.55.60 = porc.55.60,
                         porc.60.65 = porc.60.65, porc.65.70 = porc.65.70, porc.70.75 = porc.70.75)), total.dalys = 0,
                         total.cost.masto = 0, total.treatment = 0, total.cost = 0)
 
-for(i in 1:dim(intervenciones)[1])
+for(i in 1:dim(results.simulation)[1])
 {
-  percentage <- data.frame(percentage = as.numeric(interventions[i,2:9]),age.group=age.group.data.frame)
-  periodicity <- as.numeric(interventions[i,'periodicity'])
+  percentage <- data.frame(percentage = as.numeric(results.simulation[i,2:9]),age.group=age.group.data.frame)
+  periodicity <- as.numeric(results.simulation[i,'periodicity'])
   results <- resume.ce(percentage,periodicity,incidence,conapo.incidence,mean.sojourn.time,sensitivity,
                         start,end,age.group.data.frame)
   
-  interventions[i,10:13] <- results
+  results.simulation[i,10:13] <- results
 }
 
-save.image("~/Documents/INCAN/BrCa-Cost-Benefit/resultados-simulacion-sensibilidad-r-0-4-Sept.RData")
 ```
 
 
