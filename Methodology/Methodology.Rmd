@@ -1,0 +1,507 @@
+---
+title: "Methodology - BrCa Screening"
+author: "Ernesto Ulloa"
+date: "September 7, 2015"
+output: html_document
+---
+
+The first  4 sections of this markdown file define:
+
+- Auxiliary functions to run the analysis 
+- Population and detection parameters
+- Effectiveness measured in DALYS
+- Costs of each program
+ 
+
+In the final section we run the cost-effectiveness analysis for all posible screening programs. 
+
+# Auxiliary functions
+
+First we load all necessary libraries and define the auxiliary functions that are described in the *Auxiliary Functions* markdown file. 
+
+```{r}
+library(RCurl)
+library(foreign)
+library(xtable)
+library(knitr)
+library(nlme)
+library(KMsurv)
+library(ggplot2)
+library(plyr)
+library(reshape2)
+
+setwd('/Users/Ernesto/Documents/INCAN/Reproducibility-cost-effectiveness/')
+source('Auxiliary Functions/auxiliary-functions.R')
+
+```
+
+# Population structure
+
+In this section we load and define population data and parameters. 
+
+## Data from National Population Counsil in Mexico
+
+We load the data from the National Population Counsil and define the age groups.
+
+```{r}
+conapo <- read.csv('Data/Conapo-Projections.csv')
+```
+
+### Age Groups
+
+Define age groups
+
+```{r}
+age.group.data.frame <- c('[25,40)','[40,45)','[45,50)','[50,55)','[55,60)','[60,65)','[65,70)','[70,75)')
+age.group <- c(25,40,45,50,55,60,65,70,75)
+```
+
+### Mean of group age
+
+Define the mean of each group age:
+
+```{r}
+mean.age.group <- data.frame(age.group = age.group.data.frame,mean.age.group = c(32.5,42.5,47.5,52.5,57.5,62.5,67.5,72.5))
+```
+
+## BrCa Incidence
+
+We define the incidence rates by group age according to GLOBOCAN's estimates of the incidence rates.
+
+```{r}
+incidence <- data.frame(age.group = age.group.data.frame,incidence = c(11.7,58.7,84.3,106.5,118.6,119.4,116.6,108.8))
+```
+
+## Estimation of BrCa letality rates by cancer stage
+
+We load the data from the patient cohort (n = 615) treated at the National Cancer Institute in Mexico covered financially by the Catastrophic Protection Fund with follow up from 2007 to 2013 
+
+```{r,warning=FALSE,message=FALSE}
+githubURL <-'https://github.com/ernesto-up/Reproducibilidad-BrCa-Cost-Benefit/blob/master/Datos/SeguroPopular.RData?raw=true'
+load(url(githubURL))
+```
+
+### Transformation of variables
+
+We convert the time to years and separate them by clinical stage:
+
+```{r,warning=FALSE,message=FALSE}
+datos$tiempo.vida.years <- as.numeric((datos$tiempo.vida)/365.25)
+data.by.stage <- split(datos,datos$etapa.clinica.2)
+```
+
+### Life tables by clinical stage
+
+We calculate the life tables by stages: 
+
+```{r,message=FALSE,warning=FALSE}
+life.tables <- lapply(data.by.stage,function(x){
+                            time.life.years.redo <-floor(x$tiempo.vida.years)
+                            data.table <- data.frame(time.life.years.redo,x$censura.vida)
+                            die<-gsummary(data.table,sum,groups=time.life.years.redo)
+                            total<-gsummary(data.table, length, groups=time.life.years.redo)
+                            ltab.data<-cbind(die[,1:2], total[,2])
+                            rm(time.life.years.redo)
+                            attach(ltab.data)
+                            lt=length(time.life.years.redo)
+                            time.life.years.redo[lt+1]=NA
+                            nevent = x.censura.vida
+                            nlost = total[,2] - x.censura.vida
+                            n = nrow(x)
+                            mytable <- lifetab(time.life.years.redo, n, nlost, nevent)
+                            detach(ltab.data)
+                            mytable[,1:5]
+                            })
+```
+
+#### Early Stage 
+
+Resulting life table for patients in early BrCa stage
+
+```{r,echo=FALSE}
+kable(life.tables[[1]][1:6,])
+```
+
+#### Locally Advanced Stage 
+
+Resulting life table for patients in locally advanced BrCa stage
+
+```{r,echo=FALSE}
+kable(life.tables[[2]][1:6,])
+```
+
+### Metastatic Stage 
+
+Resulting life table for patients for mestastasic BrCa stage
+
+```{r,echo=FALSE}
+kable(life.tables[[3]][1:6,])
+```
+
+With the previous life tables we define the following data frame:
+
+```{r,echo=FALSE}
+survival <- data.frame(clinical.stage = c(rep('Early',5),rep('Locally Advanced',5),rep('Metastasic',5)),
+                        rate.survival  = c(0.9940,0.9819,0.9634,0.9447,0.9384,0.9727,0.9116,0.8389,0.7835,0.7377,
+                           0.6854,0.6020,0.4854,0.3712,0.2579),year = c(1:5,1:5,1:5))
+  
+survival$rate.survival <- round(survival$rate.survival,2)
+
+survival <- ddply(survival,'clinical.stage',mutate,
+                    acum.survival = c(rate.survival[1],
+                             prod(rate.survival[1:2]),                           
+                             prod(rate.survival[1:3]),
+                             prod(rate.survival[1:4]), 
+                             prod(rate.survival[1:5])))
+
+survival$acum.survival <- round(survival$acum.survival,2)
+
+survival <- ddply(survival,'clinical.stage',mutate,
+                   acum.letality = c(1-acum.survival[1],
+                                      acum.survival[1]- acum.survival[2],
+                                      acum.survival[2] - acum.survival[3],
+                                      acum.survival[3] - acum.survival[4],
+                                      acum.survival[4] - acum.survival[5]))
+
+survival$acum.letality <- round(survival$acum.letality,2)
+```
+
+## BrCa Null Scenario Distribution
+
+We define the distribution of BrCa cases of patients who arrived at the National Institute of Cancer in Mexico during 2007 without screening. This is the BrCa distribution under the null scenario. 
+
+```{r}
+distribution <- data.frame(clinical.stage = c('Early','Locally Advanced','Metastasic'),distribution = c(.344,.521,.135))
+```
+
+# Breast Cancer Screening: Detection Parameters
+
+## Mean Sojourn Time
+Mean sojourn time (Duffy & Gabe, a partir de los 40) is defined for group ages of 40-49, 50-59, 60-69, 70-74 so we extrapolate for the 
+25-40 group age
+
+```{r,echo=FALSE}
+x <- c(45,55,65,72)
+y <- c(2.4,3.7,4.2,4)
+lin.mst <- lm(y ~ x) 
+qplot(x = x,y = y) + geom_point() + geom_smooth(method = 'lm',se = F,fullrange = T) + 
+  scale_x_continuous(limits= c(20,73)) + xlab('Age in years') + ylab('Latent period in years')
+pred <- data.frame(x = c(32.5))
+predict(lin.mst, newdata = pred)
+```
+
+Define mean sojourn time with extrapolated results:
+
+```{r}
+mean.sojourn.time <- data.frame(mean.sojourn.time = c(1.96,2.4,2.4,3.7,3.7,4.2,4.2,4.0),
+                                age.group  = age.group.data.frame)
+```
+
+## Sensitivity of the mammogram 
+
+Sensitivity defined in (Otha et al.) is  defined  for the 40-49, 50-59, 60-69, 70-79 group ages, we use a linear model on the log of the sensitivity to extrapolate for the 25-40 age group.
+
+```{r,echo=FALSE}
+x <- c(45,55,65,75) 
+y <- c(.698,.667,.773,.838)
+lin.sens <- lm(log(y) ~ x)
+z <- x
+a <- log(y)
+qplot(x = z,y = a) + geom_point() + geom_smooth(method = 'lm',formula = a ~ x ,se = F,fullrange = T) + 
+  scale_x_continuous(limits= c(20,80)) + xlab('age') + ylab('sensitivity')
+pred <- data.frame(x = c(32.5))
+exp(predict(lin.sens, newdata = pred))
+rm(list = c('pred','lin.mst','lin.sens','x','y','z'))
+
+#save.image("C:/Users/epidemiologia/Desktop/ernesto/CaMa/datos/parametros deteccion.RData")
+```
+
+Define sensitivity with extrapolated results:
+
+```{r,echo=FALSE}
+sensitivity <- data.frame(age.group = age.group.data.frame,sensitivity= c(.611,.698,.698,.667,.667,.773,.773,.838))
+```
+
+# DALYS
+
+We define the disability weights according to WHO and the Disability Weights Project Study.  
+
+```{r,echo=FALSE}
+disability.weights <- data.frame(stage = c('Early','Locally Advanced','Metastasic','Survival','Death'),
+                                 disability.weights.first.year = c(.27,.37,.61,.05,1),
+                                 disability.weights.second.year = c(.18,.30,.61,.05,1))
+```
+
+## Estimation of DALYS 
+
+In this section we estimate the number of DALYS lost per each stage of BrCa. 
+
+First, we define life expectacy according to the [National Institute of Statistics and Geography in Mexico](http://cuentame.inegi.org.mx/poblacion/esperanza.aspx?tema=P)
+
+```{r}
+life.expectancy <- 77.5
+```
+
+### DAYLS Early Stage:
+
+```{r}
+survival.early <- subset(survival,clinical.stage == 'Early')
+
+YLD.early <- ddply(mean.age.group,'age.group',summarize,
+                  YLD.early = 1*burden(N = 1,DW = subset(disability.weights,stage == 'Early')$disability.weights.first.year
+                               ,A = mean.age.group,L = 1,a = mean.age.group) + 
+                    survival.early$acum.survival[1]*burden(1,
+                           subset(disability.weights,stage == 'Early')$disability.weights.second.year,
+                           A = mean.age.group+1,L=1,a = mean.age.group) +
+                    survival.early$acum.survival[2]*burden(1,
+                           subset(disability.weights,stage == 'Early')$disability.weights.second.year,
+                           A = mean.age.group+2,L=1,a = mean.age.group) +
+                    survival.early$acum.survival[3]*burden(1,
+                           subset(disability.weights,stage == 'Early')$disability.weights.second.year,
+                           A = mean.age.group+3,L=1,a = mean.age.group) +
+                    survival.early$acum.survival[4]*burden(1,
+                           subset(disability.weights,stage == 'Early')$disability.weights.second.year,
+                           A = mean.age.group+4,L=1,a = mean.age.group) +
+                    survival.early$acum.survival[5]*burden(1,
+                           subset(disability.weights,stage == 'Survival')$disability.weights.second.year,
+                           A = mean.age.group+5,L=life.expectancy-(mean.age.group+5),a = mean.age.group)) 
+
+YLL.early <- ddply(mean.age.group,'age.group',summarize,
+                      YLL.early = 0*burden(N = 1,DW =1,A = mean.age.group,L = life.expectancy - mean.age.group,a = mean.age.group) + 
+                        survival.early$acum.letality[1]*burden(1,DW= 1,
+                               A = mean.age.group+1,L=life.expectancy-(mean.age.group+1),a = mean.age.group) +
+                        survival.early$acum.letality[2]*burden(1,DW= 1,
+                               A = mean.age.group+2,L=life.expectancy-(mean.age.group+2),a = mean.age.group) +
+                        survival.early$acum.letality[3]*burden(1,DW= 1,
+                               A = mean.age.group+3,L=life.expectancy-(mean.age.group+3),a = mean.age.group) +
+                        survival.early$acum.letality[4]*burden(1,DW= 1,
+                               A = mean.age.group+4,L=life.expectancy-(mean.age.group+4),a = mean.age.group) +
+                        survival.early$acum.letality[5]*burden(1,DW= 1,
+                               A = mean.age.group+5,L=life.expectancy-(mean.age.group+5),a = mean.age.group)) 
+
+```
+
+### DAYLS Locally Advanced: 
+
+```{r}
+survival.locally.advanced <- subset(survival,clinical.stage == 'Locally Advanced')
+
+YLD.locally.advanced <- ddply(mean.age.group,'age.group',summarize,
+                      YLD.locally.advanced = burden(N = 1,DW = 
+                        subset(disability.weights,stage == 'Locally Advanced')$disability.weights.first.year,
+                                   A = mean.age.group,L = 1,a = mean.age.group) + 
+                        survival.locally.advanced$acum.survival[1]*burden(1,
+                               subset(disability.weights,stage == 'Locally Advanced')$disability.weights.second.year,
+                               A = mean.age.group+1,L=1,a = mean.age.group) +
+                        survival.locally.advanced$acum.survival[2]*burden(1,
+                               subset(disability.weights,stage == 'Locally Advanced')$disability.weights.second.year,
+                               A = mean.age.group+2,L=1,a = mean.age.group) +
+                        survival.locally.advanced$acum.survival[3]*burden(1,
+                               subset(disability.weights,stage == 'Locally Advanced')$disability.weights.second.year,
+                               A = mean.age.group+3,L=1,a = mean.age.group) +
+                        survival.locally.advanced$acum.survival[4]*burden(1,
+                               subset(disability.weights,stage == 'Locally Advanced')$disability.weights.second.year,
+                               A = mean.age.group+4,L=1,a = mean.age.group) +
+                        survival.locally.advanced$acum.survival[5]*burden(1,
+                               subset(disability.weights,stage == 'Survival')$disability.weights.second.year,
+                               A = mean.age.group+5,L=life.expectancy-(mean.age.group+5),a = mean.age.group)) 
+
+YLL.locally.advanced <- ddply(mean.age.group,'age.group',summarize,
+                      YLL.locally.advanced = 0*burden(N = 1,DW =1,A = mean.age.group,
+                        L = life.expectancy- mean.age.group,a = mean.age.group) + 
+                        survival.locally.advanced$acum.letality[1]*burden(1,DW= 1,
+                          A = mean.age.group+1,L=life.expectancy-(mean.age.group+1),a = mean.age.group) +
+                        survival.locally.advanced$acum.letality[2]*burden(1,DW= 1,
+                          A = mean.age.group+2,L=life.expectancy-(mean.age.group+2),a = mean.age.group) +
+                        survival.locally.advanced$acum.letality[3]*burden(1,DW= 1,
+                          A = mean.age.group+3,L=life.expectancy-(mean.age.group+3),a = mean.age.group) +
+                        survival.locally.advanced$acum.letality[4]*burden(1,DW= 1,
+                          A = mean.age.group+4,L=life.expectancy-(mean.age.group+4),a = mean.age.group) +
+                        survival.locally.advanced$acum.letality[5]*burden(1,DW= 1,
+                          A = mean.age.group+5,L=life.expectancy-(mean.age.group+5),a = mean.age.group)) 
+
+```
+
+### Dalys Metastasic: 
+
+```{r}
+survival.metastasic <- subset(survival,clinical.stage == 'Metastasic')
+
+YLD.metastasic<- ddply(mean.age.group,'age.group',summarize,
+                      YLD.metastasic = burden(N = 1,DW = subset(disability.weights,stage == 'Metastasic')$disability.weights.first.year,
+                                          A = mean.age.group,L = 1,a = mean.age.group) + 
+                                            survival.metastasic$acum.survival[1]*burden(1,
+                                              subset(disability.weights,stage == 'Metastasic')$disability.weights.second.year,
+                                          A = mean.age.group+1,L=1,a = mean.age.group) +
+                                            survival.metastasic$acum.survival[2]*burden(1,
+                                              subset(disability.weights,stage == 'Metastasic')$disability.weights.second.year,
+                                          A = mean.age.group+2,L=1,a = mean.age.group) +
+                                            survival.metastasic$acum.survival[3]*burden(1,
+                                              subset(disability.weights,stage == 'Metastasic')$disability.weights.second.year,
+                                          A = mean.age.group+3,L=1,a = mean.age.group) +
+                                            survival.metastasic$acum.survival[4]*burden(1,
+                                              subset(disability.weights,stage == 'Metastasic')$disability.weights.second.year,
+                                          A = mean.age.group+4,L=1,a = mean.age.group) +
+                                            survival.metastasic$acum.survival[5]*burden(1,
+                                              subset(disability.weights,stage == 'Survival')$disability.weights.second.year,
+                                          A = mean.age.group+5,L=life.expectancy-(mean.age.group+5),a = mean.age.group)) 
+
+YLL.metastasic <- ddply(mean.age.group,'age.group',summarize,
+                                 YLL.metastasic = 0*burden(N = 1,DW =1,A = mean.age.group,
+                                    L = life.expectancy- mean.age.group,a = mean.age.group) +
+                                      survival.metastasic$acum.letality[1]*burden(1,DW= 1,
+                                    A = mean.age.group+1,L=life.expectancy-(mean.age.group+1),a = mean.age.group) +
+                                      survival.metastasic$acum.letality[2]*burden(1,DW= 1,
+                                    A = mean.age.group+2,L=life.expectancy-(mean.age.group+2),a = mean.age.group) +
+                                      survival.metastasic$acum.letality[3]*burden(1,DW= 1,
+                                    A = mean.age.group+3,L=life.expectancy-(mean.age.group+3),a = mean.age.group) +
+                                      survival.metastasic$acum.letality[4]*burden(1,DW= 1,
+                                    A = mean.age.group+4,L=life.expectancy-(mean.age.group+4),a = mean.age.group) +
+                                     survival.metastasic$acum.letality[5]*burden(1,DW= 1,
+                                    A = mean.age.group+5,L=life.expectancy-(mean.age.group+5),a = mean.age.group)) 
+
+
+total.DALY.early <- data.frame(age.group = YLD.early$age.group, 
+                                  total.DALY.early  = YLD.early$YLD.early + YLL.early$YLL.early)
+                            
+total.DALY.advanced <- data.frame(age.group = YLD.locally.advanced$age.group, 
+                            total.DALY.advanced = YLD.locally.advanced$YLD.locally.advanced + 
+                            YLL.locally.advanced$YLL.locally.advanced)
+                            
+total.DALY.metastasic <-  data.frame(age.group = YLD.metastasic$age.group, 
+                                total.DALY.metastasic  = YLD.metastasic$YLD.metastasic+ 
+                                YLL.metastasic$YLL.metastasic)
+                                
+
+DALY <- merge(total.DALY.early,total.DALY.advanced)
+DALY <- merge(DALY,total.DALY.metastasic)
+
+```
+
+# Costs of Screening and Treatment
+
+Deine the cost of one mammography:
+
+```{r,echo=FALSE}
+cost.mammography.2015 <- 1186
+```
+
+Define costs per clinical stage considering infalation rate:
+
+```{r,echo=FALSE}
+costs.stage.2012 <- data.frame(costs = c(161736,225064,241923), 
+                           clinical.stage = c('Early','Locally Advanced','Metastasic'))
+
+rate.cost <- .03 
+
+costs.stage.2015 <- data.frame(costs = costs.stage.2012$costs*(1 + rate.cost)^3,
+                                clinical.stage = costs.stage.2012$clinical.stage)
+
+costs <- data.frame(cost.mammography = 0, cost.stage.Early = 0, 
+                     cost.stage.locally.advanced =0, cost.stage.metastasic=0,
+                     period = seq(2016,2026,1))
+
+costs$cost.mammography <- cost.mammography.2015*(1 + rate.cost)^(-1*seq(1,11,1))
+costs$cost.stage.Early <- costs.stage.2015[1,1]*(1 + rate.cost)^(-1*seq(1,11,1))
+costs$cost.stage.locally.advanced <- costs.stage.2015[2,1]*(1 + rate.cost)^(-1*seq(1,11,1))
+costs$cost.stage.metastasic <- costs.stage.2015[3,1]*(1 + rate.cost)^(-1*seq(1,11,1))
+```
+
+## Mexican GDP
+We define the mexican GDP according to the [world bank](http://data.worldbank.org/indicator/NY.GDP.PCAP.CD)
+
+```{r,echo=FALSE}
+GDP.Mexico <- 10307 
+```
+
+# Cost Effectiveness Analysis 
+
+## Calculamos casos nuevos con tasas de GLOBOCAN y base de CONAPO:
+
+```{r}
+conapo.incidence <- population.incidence(incidence,age.group,conapo,mean.age.group)
+conapo.incidence <- merge(conapo.incidence,DALY)
+conapo.incidence <- merge(conapo.incidence,costs,id = 'period')
+
+```
+
+# Cost Effectiveness Analysis
+
+In this last section we run the simulations to obtain the cost effectiveness estimates for all the screening programs. First we load the data 
+
+```{r}
+#################################################################################################################
+####################################### LECTURA DATOS ###########################################################
+
+
+
+library(plyr)
+library(reshape2)
+library(ggplot2)
+
+#githubURL <- "https://github.com/ernesto-up/BrCa-Cost-Benefit/raw/master/Parametros-cost-Beneficio.RData"
+#githubURL <- "https://github.com/ernesto-up/BrCa-Cost-Benefit/raw/master/Parametros-Sensibilidad-r-0.RData"
+#githubURL <- "https://github.com/ernesto-up/BrCa-Cost-Benefit/raw/master/Parametros-Sensibilidad-Taghipour.RData"
+
+load(url(githubURL))
+
+load('/Users/Ernesto/Documents/INCAN/BrCa-Cost-Benefit/')
+```
+
+We define all the screening percentages for each age group: 
+
+```{r}
+
+porc.25.40 <- seq(0,2,1)*.01
+porc.40.45 <- seq(0,15,5)*.01
+porc.45.50 <- seq(0,18,6)*.01
+porc.50.55 <- seq(0,20,5)*.01
+porc.55.60 <- seq(0,25,5)*.01
+porc.60.65 <- seq(0,20,5)*.01
+porc.65.70 <- seq(0,18,6)*.01
+porc.70.75 <- seq(0,2,2)*.01
+
+```
+
+We define the periodicity of the programs:
+
+```{r}
+periodicity<- c(1,2,3)
+```
+
+Starting and end year:
+
+```{r}
+start<- 2016
+end <- 2026
+```
+
+We create a data frame with all the information for each intervention and run the simulations. We will store all the results in the same data frame.
+
+```{r}
+# Creamos data frame de intervenciones:
+
+interventions <- data.frame(expand.grid(list = list(periodicity = periodicity,porc.25.40 = porc.25.40, porc.40.45 = porc.40.45,
+                        porc.45.50 = porc.45.50, porc.50.55 = porc.50.55, porc.55.60 = porc.55.60,
+                        porc.60.65 = porc.60.65, porc.65.70 = porc.65.70, porc.70.75 = porc.70.75)), total.dalys = 0,
+                        total.cost.masto = 0, total.treatment = 0, total.cost = 0)
+
+for(i in 1:dim(intervenciones)[1])
+{
+  percentage <- data.frame(percentage = as.numeric(interventions[i,2:9]),age.group=age.group.data.frame)
+  periodicity <- as.numeric(interventions[i,'periodicity'])
+  results <- resume.ce(percentage,periodicity,incidence,conapo.incidence,mean.sojourn.time,sensitivity,
+                        start,end,age.group.data.frame)
+  
+  interventions[i,10:13] <- results
+}
+
+save.image("~/Documents/INCAN/BrCa-Cost-Benefit/resultados-simulacion-sensibilidad-r-0-4-Sept.RData")
+```
+
+
+
+
+
+
+

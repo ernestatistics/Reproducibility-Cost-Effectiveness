@@ -1,0 +1,332 @@
+---
+title: "Introduction - BrCa Screening"
+author: "Ernesto Ulloa"
+date: "September 7, 2015"
+output: html_document
+---
+
+This script shows the statistical analysis that was used to estimate the population screening percentages in the article's introduction. We used the National Survey of Health and Nutrition of 2012 (ENSANUT 2012) to estimate the percentages. One can download the results of the survey through this [link](http://ensanut.insp.mx/basesdoctos.php#.Vbe81vkYG-U) and follow the instructions to create a username. 
+
+
+# Reading the Data
+
+Once you have created a user download the **Individual questionnaire: Adults of 20 or more years** that is in **.dta** format. Once you have the data, using the library [foreign](https://cran.r-project.org/web/packages/foreign/foreign.pdf) we can read them: 
+
+```{r,cache=TRUE,warning=FALSE}
+library(foreign)
+       
+setwd('/Users/Ernesto/Documents/INCAN/Data/')
+
+adultos.2012 <- read.dta('Adultos.dta', convert.dates = TRUE, convert.factors = TRUE,
+                    missing.type = FALSE,
+                    convert.underscore = FALSE, warn.missing.labels = TRUE)
+
+```
+
+# Data Processing
+
+We take a subset of the data with the relevant variables that give us information about mammography screening. We also include the individual survey weights and the corresponding strata to estimate the variance.  
+
+
+```{r}
+adultos.masto <- adultos.2012[,which(colnames(adultos.2012) %in% c('sexo','aedad','a1008d','a1009d','a1010d',
+                                                                    'a1011d','a1012da','a1012db',
+                                                                    'a1013d','a1013dsp','a1014d',
+                                                                   'a1016d','a1017d','a1018d',
+                                                                   'pondef','est_var'))]
+
+```
+
+We change the variable names:
+
+```{r}
+
+colnames(adultos.masto) <- c('Sexo','Edad','Masto','Masto.11','Masto.10','Masto.09','Meses.ultima','Years.ultima',
+                             'Institucion.1','Institucion.2','Sintoma.Masto','Resultado.Masto',
+                             'Tratamiento','Causa.no.trat','Peso.Muestral','Estrato.Var')
+
+
+```
+
+## Missing Data 
+
+We revise the leves of the questions:
+
+- Durante el 2011, ¿acudió al módulo de medicina preventiva para ... mastografía?
+- During 2011, did you go to a preventive medicine module for... mammography?
+- ¿Hace cuanto le hicieron su última mastografía?
+- How long has it been since your last mammography?
+
+```{r}
+table(adultos.masto$Masto.11,adultos.masto$Sexo,useNA = 'always')
+```
+
+```{r}
+table(adultos.masto$Years.ultima,adultos.masto$Sexo,useNA = 'always')
+```
+
+In the case of women, there are 21766 NA that correspond to women who haven't had a mammography because the question did not apply for them. Therefore, in the next section we will take the missing values as if the had responded **No**.
+
+## Creation of indicator and categorical variables
+
+### Indicator for mammography screening
+
+We create an indicator that takes the value of **1** if the woman declares that she did have a mammography in 2011 (the year previous to the survey) and is equal to **0** if not. 
+
+```{r}
+adultos.masto$Masto.11.ind <- 0 
+adultos.masto$Masto.11.ind[which(adultos.masto$Masto.11  == 'sí')] <- 1
+```
+
+We create a second indicator that takes the value of **1** if the woman responded that she had a mammography exactly one year before the survey question was posed (in 2011) and is equal to **0** if not. 
+
+```{r}
+adultos.masto$Masto.11.year <- 0 
+adultos.masto$Masto.11.year[which(adultos.masto$Years.ultima  == 1)] <- 1
+```
+
+We combine these two indicator variables (see method 3 in the next section) to create a third variable that is equal to **1** if the woman responded **yes** or **0** to the questions: During 2011, did you go to a preventive medicine module for... mammography? and How long has it been since your last mammography? respectively:
+
+```{r}
+adultos.masto$Masto.11.ind.2 <- ifelse(adultos.masto$Masto.11.year == 0 & adultos.masto$Masto.11.ind == 0,0,1)
+```
+
+### Age 
+
+We create three categorical variables to divide the **age** variable into different categories:
+
+- quinquennial (breaks every five years)
+- age.intro (minimum age,25,40,45 to 75 by 5,maximun age)
+- fifty (breaks for people older or younger than 50 years)
+
+```{r}
+min <- min(adultos.masto$Edad)-1
+max <- max(adultos.masto$Edad) 
+
+temp <- cut(adultos.masto$Edad,breaks = c(min,25,40,seq(45,75,by = 5),max))
+adultos.masto$quinquenios <- temp
+
+temp <- cut(adultos.masto$Edad,breaks = c(min,39,49,69,max))
+adultos.masto$edades.intro <- temp
+
+temp <- cut(adultos.masto$Edad,breaks = c(min,49,max))
+adultos.masto$edad.cincuenta <- temp
+
+```
+
+We also define an indicator variable for symptoms and the results. Lets see the levels of the indicator variables:
+
+```{r}
+table(adultos.masto$Sintoma.Masto,adultos.masto$Masto.11.ind,useNA = 'always')
+table(adultos.masto$Resultado.Masto,adultos.masto$Masto.11.ind,useNA = 'always')
+```
+
+We add 3 indicator values that equal 1 in the cases where:
+
+- those women had a mammography in 2011 and had symptoms
+- those women had a mammography in 2011 and did not have symptoms
+- those women had a mammography in 2011 and did not have symptoms and their result was positive
+
+```{r}
+
+adultos.masto$Sintoma.ind.11 <- 0
+adultos.masto$Sintoma.ind.11[which(adultos.masto$Sintoma.Masto == 'sí' & adultos.masto$Masto.11.ind == 1)] <- 1
+
+adultos.masto$Sin.sintoma.ind.11 <- 0
+adultos.masto$Sin.sintoma.ind.11[which(adultos.masto$Sintoma.Masto == 'no' & adultos.masto$Masto.11.ind == 1)] <- 1
+
+adultos.masto$Sin.sintoma.ind.positivo.11 <- 0
+adultos.masto$Sin.sintoma.ind.positivo.11[which(adultos.masto$Sintoma.Masto == 'no' & adultos.masto$Masto.11.ind == 1 
+                                       & adultos.masto$Resultado.Masto == 'positivo' )] <- 1
+```
+
+# Estimation of the percentage of women that had a mammography during 2011 
+
+We used **method 1** that is shown below to estimate the percentages in the article. The other two methods are presented as alternatives of estimation, the third method agree with the [report](http://ensanut.insp.mx/informes/ENSANUT2012ResultadosNacionales.pdf) of the ENSANUT by the INSP.
+
+We chose the first mehotd because it only takes into account questiona1009d (**Durante el 2011, ¿acudió al módulo de medicina preventiva para ... mastografía?**) which has a binnary response. On the other side, method 3 considers the question a1012db (**¿Hace cuanto le hicieron su última mastografía?**) which has a more imprecise response. 
+
+## Survey Design 
+
+We used the package [survey](https://cran.r-project.org/web/packages/survey/survey.pdf) to define the survey design 
+
+```{r, message=FALSE,warning=FALSE}
+library(survey)
+ensanut.2012 <- svydesign(~0,strata =~ Estrato.Var,data = adultos.masto,weights =~ Peso.Muestral)
+```
+
+### Method 1: using only question a1009d 
+
+We estimate the population percentage of women who had screening using question **a1009d **
+
+For women between 40 and 50 years, the percentage is **10.9** and for women between 50 and 69 the percentage is **18.3**
+
+```{r}
+porc.masto.ensanut <- svyby(~ Masto.11.ind,~Sexo + edades.intro,design =ensanut.2012,svymean)
+porc.masto.ensanut
+```
+
+Confidence intervals:
+
+```{r}
+confint(porc.masto.ensanut)
+```
+
+Groups by quinquennials:
+
+```{r}
+porc.masto.quinquenios <- svyby(~ Masto.11.ind,~Sexo + quinquenios,design =ensanut.2012,svymean)
+porc.masto.quinquenios
+```
+
+Confidence intervals:
+
+```{r}
+confint(porc.masto.quinquenios)
+```
+
+Women older than 50:
+
+```{r}
+porc.masto.cincuenta <- svyby(~ Masto.11.ind,~Sexo + edad.cincuenta,design =ensanut.2012,svymean)
+porc.masto.cincuenta
+```
+
+Confidence intervals:
+
+```{r}
+confint(porc.masto.cincuenta)
+```
+
+### Method 2: using question a1012db
+
+We estimate the population percentage of women who had screening using question **a1012db**
+
+```{r}
+porc.masto.ensanut <- svyby(~ Masto.11.year,~Sexo + edades.intro,design =ensanut.2012,svymean)
+porc.masto.ensanut
+```
+
+Confidence intervals:
+
+```{r}
+confint(porc.masto.ensanut)
+```
+
+Quinquennials:
+
+```{r}
+porc.masto.quinquenios <- svyby(~ Masto.11.year,~Sexo + quinquenios,design =ensanut.2012,svymean)
+porc.masto.quinquenios
+```
+
+Confidence intervals:
+```{r}
+confint(porc.masto.quinquenios)
+```
+
+### Method 3: using questions a1009d and a1012db 
+
+Using both variables: whoever answered **yes** to the question **a1009d** or **1** to the question **a1012db** 
+
+```{r}
+porc.masto.ensanut <- svyby(~ Masto.11.ind.2,~Sexo + edades.intro,design =ensanut.2012,svymean)
+porc.masto.ensanut
+```
+
+Confidence intervals:
+```{r}
+confint(porc.masto.ensanut)
+```
+
+By quinquennials:
+```{r}
+porc.masto.quinquenios <- svyby(~ Masto.11.ind.2,~Sexo + quinquenios,design =ensanut.2012,svymean)
+porc.masto.quinquenios
+```
+
+Confidence intervals:
+```{r}
+confint(porc.masto.quinquenios)
+```
+
+# Estimation of the total of mammographies   
+
+### Method 1: using question a1009d 
+
+We estimate the total of mammographies using question **a1009d** 
+
+```{r}
+total.masto.ensanut <- svyby(~ Masto.11.ind,~Sexo,design =ensanut.2012,svytotal)
+total.masto.ensanut
+```
+
+Confidence intervals
+```{r}
+confint(total.masto.ensanut)
+```
+
+Women older than 50 years:
+```{r}
+total.masto.ensanut <- svyby(~ Masto.11.ind,~Sexo + edad.cincuenta ,design =ensanut.2012,svytotal)
+total.masto.ensanut
+```
+
+Confidence intervals:
+```{r}
+confint(total.masto.ensanut)
+```
+
+### Method 2: using question a1012db 
+
+We estimate the total of mammographies using question **a1012db** 
+
+```{r}
+total.masto.ensanut <- svyby(~ Masto.11.year,~Sexo,design =ensanut.2012,svytotal)
+total.masto.ensanut
+confint(total.masto.ensanut)
+```
+
+### Method 3: using questions a1009d and a1012db 
+
+Using both variables: whoever answered **yes** to the question **a1009d** or **1** to the question **a1012db** 
+
+```{r}
+total.masto.ensanut <- svyby(~ Masto.11.ind.2,~Sexo,design =ensanut.2012,svytotal)
+total.masto.ensanut
+confint(total.masto.ensanut)
+```
+
+
+# Estimation women with symptoms and results of their mammographies 
+
+We estimate the percentage of people who, in 2011, had a mammography screening with previous symptoms, by estimating the quotient of the total people that had a mammography in 2011 with previous symptoms divided by the number of people that had a mammography in 2011. 
+
+```{r}
+porc.sintoma.ensanut <- svyratio(~Sintoma.ind.11,~Masto.11.ind,ensanut.2012)
+porc.sintoma.ensanut
+```
+
+Analogously, we calculate the quotient of positive results for those mammographies that were applied in 2011 to asymptomatic women
+
+```{r}
+porc.positivo.sin.sintoma.ensanut <- svyratio(~Sin.sintoma.ind.positivo.11,~Sin.sintoma.ind.11,ensanut.2012)
+porc.positivo.sin.sintoma.ensanut
+```
+
+Finally, we calculate the number of women who had a mamammography in 2011 without previous symptoms and the total of people who had a mammography in 2011 without symptoms and their result was positive. 
+
+```{r}
+total.sin.sintoma.11.ensanut <- svyby(~Sin.sintoma.ind.11,~Sexo,ensanut.2012,svytotal)
+total.sin.sintoma.11.ensanut 
+```
+
+```{r}
+total.positivo.sin.sintoma.ensanut <- svyby(~ Sin.sintoma.ind.positivo.11,~Sexo,ensanut.2012,svytotal)
+total.positivo.sin.sintoma.ensanut
+```
+
+
+
+
+
