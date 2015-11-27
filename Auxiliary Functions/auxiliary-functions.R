@@ -122,7 +122,7 @@ population.incidence <- function(incidence,age.group,conapo,mean.age.group){
   conapo_4 <- conapo_3
   conapo_4$age.group <- cut(conapo_3$Age, age.group, right = FALSE)
   conapo_5 <- melt(conapo_4[,-1],by = colnames)
-  conapo.acumulated <- ddply(conapo_5,c('age.group','variable'),summarize,total.grou = sum(value))
+  conapo.acumulated <- ddply(conapo_5,c('age.group','variable'),summarize,total.group = sum(value))
   
   # merge incidence and population data set:
   conapo.incidence <- merge(conapo.acumulated,incidence, by = 'age.group')

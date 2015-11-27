@@ -81,7 +81,7 @@ incidence <- data.frame(age.group = age.group.data.frame,incidence = c(11.7,58.7
 We load the data from the patient cohort (n = 615) treated at the National Cancer Institute in Mexico covered financially by the Catastrophic Protection Fund with follow up from 2007 to 2013 
 
 ```{r,warning=FALSE,message=FALSE}
-githubURL <-'https://github.com/ernesto-up/Reproducibilidad-BrCa-Cost-Benefit/blob/master/Datos/SeguroPopular.RData?raw=true'
+githubURL <-'https://rawgit.com/ernesto-up/Reproducibility-Cost-Effectiveness/master/Data%20Sets/Catastrophic-Protection-Fund-Data.RData'
 load(url(githubURL))
 ```
 
@@ -431,28 +431,17 @@ conapo.incidence <- merge(conapo.incidence,costs,id = 'period')
 
 # Cost Effectiveness Analysis
 
-In this last section we run the simulations to obtain the cost effectiveness estimates for all the screening programs. First we load the data 
+In this last section we run the simulations to obtain the cost effectiveness estimates for all the screening programs. First we load the data.
 
 ```{r}
-#################################################################################################################
-####################################### LECTURA DATOS ###########################################################
-
-
 
 library(plyr)
 library(reshape2)
 library(ggplot2)
 
-#githubURL <- "https://github.com/ernesto-up/BrCa-Cost-Benefit/raw/master/Parametros-cost-Beneficio.RData"
-#githubURL <- "https://github.com/ernesto-up/BrCa-Cost-Benefit/raw/master/Parametros-Sensibilidad-r-0.RData"
-#githubURL <- "https://github.com/ernesto-up/BrCa-Cost-Benefit/raw/master/Parametros-Sensibilidad-Taghipour.RData"
-
-load(url(githubURL))
-
-load('/Users/Ernesto/Documents/INCAN/BrCa-Cost-Benefit/')
 ```
 
-We define all the screening percentages for each age group: 
+Define all the screening percentages for each age group: 
 
 ```{r}
 
@@ -467,7 +456,7 @@ porc.70.75 <- seq(0,2,2)*.01
 
 ```
 
-We define the periodicity of the programs:
+Define the periodicity of the programs:
 
 ```{r}
 periodicity<- c(1,2,3)
@@ -480,11 +469,11 @@ start<- 2016
 end <- 2026
 ```
 
-We create a data frame with all the information for each intervention and run the simulations. We will store all the results in the same data frame.
+We create a data frame with all the information for each intervention and run the simulations. We store all the results in the same data frame. This last part of the markdown file is not evaluated. 
 
-```{r}
-# Creamos data frame de intervenciones:
+It take approximately 30 minutes to run on a 
 
+```{r,eval=FALSE}
 interventions <- data.frame(expand.grid(list = list(periodicity = periodicity,porc.25.40 = porc.25.40, porc.40.45 = porc.40.45,
                         porc.45.50 = porc.45.50, porc.50.55 = porc.50.55, porc.55.60 = porc.55.60,
                         porc.60.65 = porc.60.65, porc.65.70 = porc.65.70, porc.70.75 = porc.70.75)), total.dalys = 0,
