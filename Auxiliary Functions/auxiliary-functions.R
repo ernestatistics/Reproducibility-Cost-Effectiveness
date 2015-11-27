@@ -210,9 +210,9 @@ resume.ce <- function(percentage,periodicity,incidence,conapo.incidence,mean.soj
   
   # cost of treatment
   
-  data$cost.stage.Early <- data$Early*data$cost.stage.Early 
-  data$cost.stage.locally.advanced <- data$LocallyAdvanced*data$cost.stage.locally.advanced
-  data$cost.Metastasic <- data$Metastasic*data$cost.stage.metastasic
+  data$total.cost.early <- data$Early*data$cost.stage.Early 
+  data$total.cost.locally.advanced <- data$LocallyAdvanced*data$cost.stage.locally.advanced
+  data$total.cost.metastasic <- data$Metastasic*data$cost.stage.metastasic
   
   # DALYS
   
@@ -227,9 +227,9 @@ resume.ce <- function(percentage,periodicity,incidence,conapo.incidence,mean.soj
   total.cost.mammo <- sum(data$cost.total.mammography)
   
   # Total cost treatment
-  total.treatment <- sum(data$cost.treatment.early) + 
-    sum(data$cost.treatment.Locally.Advanced) + 
-    sum(data$cost.treatment.Metastasic)
+  total.treatment <- sum(data$total.cost.early ) + 
+    sum(data$total.cost.locally.advanced ) + 
+    sum(data$total.cost.metastasic)
   
   # Total cost 
   total.cost <- total.cost.mammo + total.treatment 

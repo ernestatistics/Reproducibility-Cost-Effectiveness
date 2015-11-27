@@ -319,7 +319,6 @@ YLL.locally.advanced <- ddply(mean.age.group,'age.group',summarize,
                           A = mean.age.group+4,L=life.expectancy-(mean.age.group+4),a = mean.age.group) +
                         survival.locally.advanced$acum.letality[5]*burden(1,DW= 1,
                           A = mean.age.group+5,L=life.expectancy-(mean.age.group+5),a = mean.age.group)) 
-
 ```
 
 ### Dalys Metastasic: 
@@ -405,6 +404,7 @@ costs$cost.mammography <- cost.mammography.2015*(1 + rate.cost)^(-1*seq(1,11,1))
 costs$cost.stage.Early <- costs.stage.2015[1,1]*(1 + rate.cost)^(-1*seq(1,11,1))
 costs$cost.stage.locally.advanced <- costs.stage.2015[2,1]*(1 + rate.cost)^(-1*seq(1,11,1))
 costs$cost.stage.metastasic <- costs.stage.2015[3,1]*(1 + rate.cost)^(-1*seq(1,11,1))
+
 ```
 
 ## Mexican GDP
@@ -479,14 +479,13 @@ R version 3.2.0 (2015-04-16)
                         porc.45.50 = porc.45.50, porc.50.55 = porc.50.55, porc.55.60 = porc.55.60,
                         porc.60.65 = porc.60.65, porc.65.70 = porc.65.70, porc.70.75 = porc.70.75)), total.dalys = 0,
                         total.cost.masto = 0, total.treatment = 0, total.cost = 0)
-
-for(i in 1:dim(results.simulation)[1])
+dim(results.simulation)[1]
+for(i in 1:10)
 {
   percentage <- data.frame(percentage = as.numeric(results.simulation[i,2:9]),age.group=age.group.data.frame)
   periodicity <- as.numeric(results.simulation[i,'periodicity'])
   results <- resume.ce(percentage,periodicity,incidence,conapo.incidence,mean.sojourn.time,sensitivity,
                         start,end,age.group.data.frame)
-  
   results.simulation[i,10:13] <- results
 }
 
