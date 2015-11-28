@@ -2,7 +2,9 @@
 title: "Auxiliary Functions"
 author: "Ernesto Ulloa"
 date: "September 28, 2015"
-output: html_document
+output:
+  html_document:
+    theme: cerulean
 ---
 
 This script defines the auxiliary functions used in the analysis.

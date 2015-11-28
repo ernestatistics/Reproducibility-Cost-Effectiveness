@@ -2,7 +2,9 @@
 title: "Introduction - BrCa Screening"
 author: "Ernesto Ulloa"
 date: "September 7, 2015"
-output: html_document
+output:
+  html_document:
+    theme: flatly
 ---
 
 This script shows the statistical analysis that was used to estimate the population screening percentages in the article's introduction. We used the National Survey of Health and Nutrition of 2012 (ENSANUT 2012) to estimate the percentages. One can download the results of the survey through this [link](http://ensanut.insp.mx/basesdoctos.php#.Vbe81vkYG-U) and follow the instructions to create a username. In this markdown we load the survey results from a local directory. 

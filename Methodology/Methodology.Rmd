@@ -2,7 +2,9 @@
 title: "Methodology - BrCa Screening"
 author: "Ernesto Ulloa"
 date: "September 7, 2015"
-output: html_document
+output:
+  html_document:
+    theme: cosmo
 ---
 
 The first  4 sections of this markdown file define:
@@ -231,6 +233,7 @@ We define the disability weights according to WHO and the Disability Weights Pro
 disability.weights <- data.frame(stage = c('Early','Locally Advanced','Metastasic','Survival','Death'),
                                  disability.weights.first.year = c(.27,.37,.61,.05,1),
                                  disability.weights.second.year = c(.18,.30,.61,.05,1))
+print(disability.weights)
 ```
 
 ## Estimation of DALYS 
@@ -321,7 +324,7 @@ YLL.locally.advanced <- ddply(mean.age.group,'age.group',summarize,
                           A = mean.age.group+5,L=life.expectancy-(mean.age.group+5),a = mean.age.group)) 
 ```
 
-### Dalys Metastasic: 
+### Dalys Metastasic:
 
 ```{r}
 survival.metastasic <- subset(survival,clinical.stage == 'Metastasic')
@@ -376,6 +379,11 @@ DALY <- merge(total.DALY.early,total.DALY.advanced)
 DALY <- merge(DALY,total.DALY.metastasic)
 ```
 
+```{r}
+print(DALY)
+```
+
+
 # Costs of Screening and Treatment
 
 Deine the cost of one mammography:
@@ -413,15 +421,22 @@ We define the mexican GDP according to the [world bank](http://data.worldbank.or
 GDP.Mexico <- 10307 
 ```
 
-# Cost Effectiveness Analysis 
 
-## Calculamos casos nuevos con tasas de GLOBOCAN y base de CONAPO:
+## Calculate new incident cases with GLOBOCAN data and the National Counsil Information:
 
 ```{r}
 conapo.incidence <- population.incidence(incidence,age.group,conapo,mean.age.group)
 conapo.incidence <- merge(conapo.incidence,DALY)
 conapo.incidence <- merge(conapo.incidence,costs,id = 'period')
 ```
+
+
+We saved the parameters as a .Rdata file that can be found in the **data** section of the github.
+
+```{r}
+
+```
+
 
 # Cost Effectiveness Analysis
 
@@ -463,9 +478,9 @@ start<- 2016
 end <- 2026
 ```
 
-We create a data frame with all the information for each intervention and run the simulations. We store all the results in the same data frame. This last part of the markdown file is not evaluated. 
+We create a data frame with all the information for each intervention and run the simulations. Results are stored in the same data frame and saved. This last part of the markdown file is not evaluated. To load the results, see the **Data** section of the github page.
 
-It takes approximately 40 minutes to run with:
+It takes approximately 20 minutes to run with:
 
 MacBook Pro 
 2.9 GHz Intel Core i5 
@@ -487,6 +502,7 @@ for(i in 1:dim(results.simulation)[1])
   results.simulation[i,10:13] <- results
 }
 
+rm(list = setdiff(ls(),'results.simulation'))
 ```
 
 
