@@ -145,7 +145,7 @@ With the previous life tables we define the following data frame:
 
 ```{r,echo=FALSE}
 survival <- data.frame(clinical.stage = c(rep('Early',5),rep('Locally Advanced',5),rep('Metastasic',5)),
-                        rate.survival  = c(0.9940,0.9819,0.9634,0.9447,0.9384,0.9727,0.9116,0.8389,0.7835,0.7377,
+rate.survival  = c(0.9940,0.9819,0.9634,0.9447,0.9384,0.9727,0.9116,0.8389,0.7835,0.7377,
                            0.6854,0.6020,0.4854,0.3712,0.2579),year = c(1:5,1:5,1:5))
   
 survival$rate.survival <- round(survival$rate.survival,2)
@@ -374,7 +374,6 @@ total.DALY.metastasic <-  data.frame(age.group = YLD.metastasic$age.group,
 
 DALY <- merge(total.DALY.early,total.DALY.advanced)
 DALY <- merge(DALY,total.DALY.metastasic)
-
 ```
 
 # Costs of Screening and Treatment
@@ -422,7 +421,6 @@ GDP.Mexico <- 10307
 conapo.incidence <- population.incidence(incidence,age.group,conapo,mean.age.group)
 conapo.incidence <- merge(conapo.incidence,DALY)
 conapo.incidence <- merge(conapo.incidence,costs,id = 'period')
-
 ```
 
 # Cost Effectiveness Analysis
@@ -479,8 +477,8 @@ R version 3.2.0 (2015-04-16)
                         porc.45.50 = porc.45.50, porc.50.55 = porc.50.55, porc.55.60 = porc.55.60,
                         porc.60.65 = porc.60.65, porc.65.70 = porc.65.70, porc.70.75 = porc.70.75)), total.dalys = 0,
                         total.cost.masto = 0, total.treatment = 0, total.cost = 0)
-dim(results.simulation)[1]
-for(i in 1:10)
+
+for(i in 1:dim(results.simulation)[1])
 {
   percentage <- data.frame(percentage = as.numeric(results.simulation[i,2:9]),age.group=age.group.data.frame)
   periodicity <- as.numeric(results.simulation[i,'periodicity'])
