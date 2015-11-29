@@ -1,0 +1,173 @@
+---
+title: "Results"
+author: "Ernesto Ulloa"
+date: "September 28, 2015"
+output: html_document
+---
+
+# Load Data
+
+First we load the results from the simulation study and the auxiliary functions:
+
+```{r}
+library(plyr)
+library(reshape2)
+library(ggplot2)
+githubURL <-'https://rawgit.com/ernesto-up/Reproducibility-Cost-Effectiveness/master/Data%20Sets/Results%20Simulation.RData'
+load(url(githubURL))
+
+githubURL <- 'https://rawgit.com/ernesto-up/Reproducibility-Cost-Effectiveness/master/Data%20Sets/Simulation%20Parameters.RData'
+load(url(githubURL))
+```
+
+
+# Null Model 
+
+Define the null model when the simulation has no screening program
+
+```{r}
+null.model <- results.simulation[1,]
+```
+
+
+# Current scenario
+
+Using data from the ENSANUT survey based on the question **During 2011 did you attend a health service unit to...** we define the current screening program:
+
+
+```{r}
+ensanut<- data.frame(periodicity = 2,porc.25.40 = .019,porc.40.45 = .096,porc.45.50 = .145,
+                     porc.50.55 = .196, porc.55.60 = .189,porc.60.65 = .179, porc.65.70 = .145, 
+                     porc.70.75 = .073,total.dalys = 0,
+                     total.cost.masto = 0,total.treatment = 0,total.cost = 0)
+
+percentage <- data.frame(percentage= as.numeric(ensanut[2:9]),age.group=age.group.data.frame)
+periodicity <- as.numeric(ensanut[1,'periodicity'])
+start<- 2016
+end <- 2026
+```
+
+In order to compare the current program, we evaluate its cost effectiveness:
+
+```{r}
+results.ensanut <- resume.ce(percentage,periodicity,incidence,conapo.incidence,mean.sojourn.time,sensitivity,
+                              start,end,age.group.data.frame)
+```
+
+# Costs and DALYS
+
+Calculate the differences in costs and DALYS, between the null model and the rest of the models:
+
+```{r}
+
+results.ensanut$dif.cost <- results.ensanut$total.cost - null.model$total.cost
+results.ensanut$dif.dalys <- null.model$total.dalys - results.ensanut$total.dalys 
+results.ensanut$dif.cost.dollars.year <- (results.ensanut$dif.cost)/(11*15.22)
+results.ensanut$dif.dalys.year <- results.ensanut$dif.dalys/10
+
+results.simulation.2 <- results.simulation
+results.simulation.2$dif.cost <- results.simulation$total.cost - null.model$total.cost
+results.simulation.2$dif.dalys <- null.model$total.dalys - results.simulation.2$total.dalys 
+results.simulation.2$dif.cost.dollars.year <- (results.simulation.2$dif.cost)/(11*15.22)
+results.simulation.2$dif.dalys.year <- results.simulation.2$dif.dalys/10
+results.simulation.2$Periodicity <- as.factor(with(results.simulation.2,ifelse(periodicity ==1,'Annual',
+                                                                        ifelse(periodicity == 2,'Biennial','Triennial'))))
+```
+######################################################################################
+
+# Encontramos las intervenciones que tengan menor cociente de cost efectividad
+
+Find programs with the smallest cost-effectiveness ratio:
+
+
+```{r}
+results.simulation.3<- results.simulation.2
+results.simulation.3$cost.efect<- results.simulation.2$dif.cost.dollars.year/results.simulation.2$dif.dalys.year
+optimo <- results.simulation.3[which(results.simulation.3$cost.efect == min(results.simulation.3$cost.efect,na.rm = TRUE)),]
+optimo$cost.efect.opt <- optimo$cost.efect
+```
+
+
+Find the expansion path:
+
+```{r,warning=FALSE}
+exit <- 0
+optimo.temp <- optimo
+
+while(exit == 0){
+  
+  temp <- results.simulation.3
+  
+  # remove interventions no longer in the expansion path
+  temp <- temp[c(which(temp$dif.cost.dollars.year >= optimo.temp$dif.cost.dollars.year &
+                         temp$dif.dalys.year >= optimo.temp$dif.dalys.year)),]
+  
+  if(dim(temp)[1] != 0){
+  # encontramos nueva intervención óptima
+  delta.y <- temp$dif.cost.dollars.year - optimo.temp$dif.cost.dollars.year
+  delta.x  <- temp$dif.dalys.year - optimo.temp$dif.dalys.year
+  temp$cost.efect.opt <- delta.y/delta.x
+  print(min(temp$cost.efect.opt,na.rm = TRUE))
+  optimo.temp <- temp[which(temp$cost.efect.opt == min(temp$cost.efect.opt,na.rm = TRUE)),]
+  optimo <- rbind(optimo,optimo.temp)
+  
+  }else {
+    exit <-  1
+  } 
+}
+
+```
+
+# Plot Results
+
+We plot the results of the simulation:
+
+```{r}
+optimo <- optimo[which(optimo$Periodicity != 'Anual'),]
+feasible <- optimo[12,]
+objective <- optimo[13,]
+
+cbPalette <- c("#E69F00", "#56B4E9", "#CC79A7","#009E73","#F0E442", "#0072B2","#D55E00")
+
+theme_set(theme_bw(20))
+
+g <- ggplot(results.simulation.2,aes(x = dif.dalys.year,y = dif.cost.dollars.year/10^6,colour = Periodicity))+ 
+  ggtitle('Cost-Efficiency of Mammography Screening \n 2016-2026') + geom_point(alpha = .25) +
+  theme(plot.title = element_text(size=20, face="bold", vjust=2))+
+  geom_abline(intercept  = 0, slope = 3*GDP.Mexico/10^6,size =1.1,color = 'grey10',linetype = 'longdash') +  
+  geom_abline(intercept  = 0, slope = GDP.Mexico/10^6,size = 1.1, color = 'grey10',linetype = 'longdash') + 
+  xlab('DALYS Averted per year') + ylab('Annual Cost Millions of US$') + 
+  coord_cartesian(xlim = c(0,50000))+ coord_cartesian(ylim = c(0,300)) + scale_color_manual(values = cbPalette) + 
+  guides(colour = guide_legend(override.aes = list(alpha = 1))) + 
+  geom_point(aes(x = results.ensanut$dif.dalys.year, y = results.ensanut$dif.cost.dollars.year/10^6), 
+             colour = 'firebrick3' ,size = 3,shape = 23,fill = 'firebrick3')+
+  annotate('text', x = results.ensanut$dif.dalys.year + 1200, y = results.ensanut$dif.cost.dollars.year/10^6-5, 
+           label = 'Current Program', color = 'firebrick3',size = 6)+
+  geom_line(data = optimo,aes(x = dif.dalys.year,y = dif.cost.dollars.year/10^6),colour = 'grey22')+
+  geom_point(data = optimo,aes(x = dif.dalys.year,y = dif.cost.dollars.year/10^6),
+             size = 3,shape = 23,colour = 'grey22', fill = 'grey22')+
+  annotate('text', x = 7800, y = 22, 
+           label = 'Expansion Path', color = 'grey22',size = 6)+
+  geom_point(aes(x = feasible$dif.dalys.year, y = feasible$dif.cost.dollars.year/10^6),
+             colour = 'orangered', size= 3,shape = 23, fill = 'orangered') +
+  annotate('text', x = feasible$dif.dalys.year + 1000, y =  feasible$dif.cost.dollars.year/10^6,
+           label = 'Feasible', color = 'orangered',size = 6) +
+  geom_point(aes(x = objective$dif.dalys.year, y = objective$dif.cost.dollars.year/10^6),
+             colour = 'forestgreen', size= 3,shape = 23, fill = 'forestgreen') + 
+  annotate('text', x = objective$dif.dalys.year + 1350, y =  objective$dif.cost.dollars.year/10^6,
+           label = 'Objetive', color = 'forestgreen',size = 6) + 
+  annotate('text', x = 11000, y =  280,label = '3 veces GDP', color = 'grey22',size = 6) +
+  annotate('text', x = 15000, y =  180,label = 'GDP', color = 'grey22',size = 6) 
+  
+```
+
+```{r,echo=FALSE}
+g
+```
+
+We compare the current intervention with the feasible intervention:
+
+```{r}
+feasible$dif.dalys.year - results.ensanut$dif.dalys.year
+(feasible$dif.cost.dollars.year- results.ensanut$dif.cost.dollars.year)/10^6
+```
