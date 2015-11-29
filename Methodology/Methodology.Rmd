@@ -35,7 +35,6 @@ library(reshape2)
 url <-'https://rawgit.com/ernesto-up/Reproducibility-Cost-Effectiveness/master/Auxiliary%20Functions/auxiliary-functions.R'
 temp <- getURL(url,followlocation = TRUE, cainfo = system.file("CurlSSL", "cacert.pem", package = "RCurl"))
 source(url)
-
 ```
 
 # Population structure
@@ -431,23 +430,18 @@ conapo.incidence <- merge(conapo.incidence,costs,id = 'period')
 ```
 
 
-We saved the parameters as a .Rdata file that can be found in the **data** section of the github.
-
-```{r}
-
-```
+We saved the parameters as a .Rdata file that can be found in the **Data** section of the github.
 
 
 # Cost Effectiveness Analysis
 
-In this last section we run the simulations to obtain the cost effectiveness estimates for all the screening programs. First we load the data.
+In this last section we run the simulations to obtain the cost effectiveness estimates for all the screening programs. First we load the previously defined parameters.
 
 ```{r}
-
+githubURL <- 'https://rawgit.com/ernesto-up/Reproducibility-Cost-Effectiveness/master/Data%20Sets/Simulation%20Parameters.RData'
+load(url(githubURL))
 library(plyr)
 library(reshape2)
-library(ggplot2)
-
 ```
 
 Define all the screening percentages for each age group: 
@@ -480,7 +474,7 @@ end <- 2026
 
 We create a data frame with all the information for each intervention and run the simulations. Results are stored in the same data frame and saved. This last part of the markdown file is not evaluated. To load the results, see the **Data** section of the github page.
 
-It takes approximately 20 minutes to run with:
+It took approximately 35 minutes to run the simulations with a:
 
 MacBook Pro 
 2.9 GHz Intel Core i5 
