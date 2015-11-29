@@ -75,9 +75,8 @@ results.simulation.2$Periodicity <- as.factor(with(results.simulation.2,ifelse(p
 ```
 ######################################################################################
 
-# Encontramos las intervenciones que tengan menor cociente de cost efectividad
 
-Find programs with the smallest cost-effectiveness ratio:
+# Find programs with the smallest cost-effectiveness ratio:
 
 
 ```{r}
@@ -131,6 +130,7 @@ cbPalette <- c("#E69F00", "#56B4E9", "#CC79A7","#009E73","#F0E442", "#0072B2","#
 
 theme_set(theme_bw(20))
 
+
 g <- ggplot(results.simulation.2,aes(x = dif.dalys.year,y = dif.cost.dollars.year/10^6,colour = Periodicity))+ 
   ggtitle('Cost-Efficiency of Mammography Screening \n 2016-2026') + geom_point(alpha = .25) +
   theme(plot.title = element_text(size=20, face="bold", vjust=2))+
@@ -141,7 +141,7 @@ g <- ggplot(results.simulation.2,aes(x = dif.dalys.year,y = dif.cost.dollars.yea
   guides(colour = guide_legend(override.aes = list(alpha = 1))) + 
   geom_point(aes(x = results.ensanut$dif.dalys.year, y = results.ensanut$dif.cost.dollars.year/10^6), 
              colour = 'firebrick3' ,size = 3,shape = 23,fill = 'firebrick3')+
-  annotate('text', x = results.ensanut$dif.dalys.year + 1200, y = results.ensanut$dif.cost.dollars.year/10^6-5, 
+  annotate('text', x = results.ensanut$dif.dalys.year + 2100, y = results.ensanut$dif.cost.dollars.year/10^6-8, 
            label = 'Current Program', color = 'firebrick3',size = 6)+
   geom_line(data = optimo,aes(x = dif.dalys.year,y = dif.cost.dollars.year/10^6),colour = 'grey22')+
   geom_point(data = optimo,aes(x = dif.dalys.year,y = dif.cost.dollars.year/10^6),
@@ -150,13 +150,13 @@ g <- ggplot(results.simulation.2,aes(x = dif.dalys.year,y = dif.cost.dollars.yea
            label = 'Expansion Path', color = 'grey22',size = 6)+
   geom_point(aes(x = feasible$dif.dalys.year, y = feasible$dif.cost.dollars.year/10^6),
              colour = 'orangered', size= 3,shape = 23, fill = 'orangered') +
-  annotate('text', x = feasible$dif.dalys.year + 1000, y =  feasible$dif.cost.dollars.year/10^6,
+  annotate('text', x = feasible$dif.dalys.year + 1100, y =  feasible$dif.cost.dollars.year/10^6,
            label = 'Feasible', color = 'orangered',size = 6) +
   geom_point(aes(x = objective$dif.dalys.year, y = objective$dif.cost.dollars.year/10^6),
              colour = 'forestgreen', size= 3,shape = 23, fill = 'forestgreen') + 
   annotate('text', x = objective$dif.dalys.year + 1350, y =  objective$dif.cost.dollars.year/10^6,
            label = 'Objetive', color = 'forestgreen',size = 6) + 
-  annotate('text', x = 11000, y =  280,label = '3 veces GDP', color = 'grey22',size = 6) +
+  annotate('text', x = 11000, y =  280,label = '3 times GDP', color = 'grey22',size = 6) +
   annotate('text', x = 15000, y =  180,label = 'GDP', color = 'grey22',size = 6) 
   
 ```

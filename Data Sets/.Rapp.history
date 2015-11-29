@@ -1,0 +1,5 @@
+load("/Users/Ernesto/Documents/INCAN/Reproducibility-Cost-Effectiveness-Github/Data Sets/Results Simulation.RData")
+ls()
+table(results.simulation$periodicity)
+load("/Users/Ernesto/Documents/INCAN/Reproducibility-Cost-Effectiveness-Github/Data Sets/Results Simulation.RData")
+table(results.simulation$periodicity)
